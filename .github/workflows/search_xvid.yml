@@ -1,4 +1,4 @@
-name: Save xvideos.com Search Results as MHTML (Collective ZIP)
+name: Save xvideos.com Search Results as Clickable Grid
 
 on:
   workflow_dispatch:
@@ -41,19 +41,19 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install pyppeteer
+          pip install pyppeteer beautifulsoup4 lxml httpx
 
-      - name: Run xvideos search downloader
+      - name: Run xvideos search downloader and grid builder
         run: |
           python save_xvideos_search.py \
             --query "${{ github.event.inputs.query }}" \
             --pages "${{ github.event.inputs.pages }}" \
             ${{ github.event.inputs.durf != '' && format('--durf {0}', github.event.inputs.durf) || '' }}
 
-      - name: Commit and push download folder
+      - name: Commit and push final ZIP
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add download/
-          git commit -m "Add collective MHTML ZIP for xvideos search: ${{ github.event.inputs.query }}" || echo "No changes to commit"
+          git commit -m "Add clickable image grid ZIP for xvideos search: ${{ github.event.inputs.query }}" || echo "No changes to commit"
           git push
