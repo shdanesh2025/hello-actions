@@ -1,0 +1,45 @@
+name: Google Search and Save Results
+
+on:
+  workflow_dispatch:
+    inputs:
+      query:
+        description: 'Search query'
+        required: true
+        type: string
+      num_results:
+        description: 'Number of results (default=10)'
+        required: false
+        type: string
+        default: '10'
+
+permissions:
+  contents: write
+
+jobs:
+  search-google:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6          # Node.js 24 compatible
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          pip install googlesearch-python
+
+      - name: Run Google search
+        run: |
+          python google_search.py "${{ github.event.inputs.query }}" ${{ github.event.inputs.num_results }}
+
+      - name: Commit and push results
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add google_results/
+          git commit -m "Add Google search results for '${{ github.event.inputs.query }}'" || echo "No changes to commit"
+          git push
