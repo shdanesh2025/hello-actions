@@ -1,0 +1,45 @@
+name: Search Videos and Save as JSON
+
+on:
+  workflow_dispatch:
+    inputs:
+      query:
+        description: 'Search query'
+        required: true
+        type: string
+      pages:
+        description: 'Number of pages to fetch (default=1)'
+        required: false
+        type: string
+        default: '1'
+
+permissions:
+  contents: write
+
+jobs:
+  search-and-save:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          pip install xvideos_api   # adjust if needed
+
+      - name: Run search and save JSON
+        run: |
+          python search_and_save.py "${{ github.event.inputs.query }}" ${{ github.event.inputs.pages }}
+
+      - name: Commit and push the JSON file
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add search_results/
+          git commit -m "Add search results for '${{ github.event.inputs.query }}'" || echo "No changes to commit"
+          git push
