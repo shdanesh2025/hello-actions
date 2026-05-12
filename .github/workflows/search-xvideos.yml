@@ -21,16 +21,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6    # ← updated from v4
+        uses: actions/checkout@v6          # ← latest, Node.js 24 compatible
 
       - name: Set up Python
-        uses: actions/setup-python@v6    # ← updated from v5
+        uses: actions/setup-python@v6      # ← latest
         with:
           python-version: '3.10'
 
       - name: Install dependencies
         run: |
-          pip install xvideos_api
+          pip install xvideos_api             # ← CHANGE THIS to the EXACT PyPI package name
 
       - name: Run search and save JSON
         run: |
