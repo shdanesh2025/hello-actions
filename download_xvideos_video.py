@@ -4,6 +4,7 @@ import os
 import re
 import shutil
 import argparse
+import subprocess
 import httpx
 from email import policy
 from email.parser import BytesParser
@@ -250,7 +251,6 @@ async def process_video(url, desired_quality, download_dir, images_dir, video_in
         for i, thumb_url in enumerate(video_info['thumbnails']):
             parsed = urlparse(thumb_url)
             ext = os.path.splitext(parsed.path)[1] or '.jpg'
-            # Use video title hash + index to avoid name collisions
             thumb_filename = f"{title_safe}_thumb_{i+1}{ext}"
             thumb_path = os.path.join(images_dir, thumb_filename)
             if not os.path.exists(thumb_path):
@@ -273,7 +273,6 @@ async def process_video(url, desired_quality, download_dir, images_dir, video_in
         with open(html_path, 'w', encoding='utf-8') as f:
             f.write(html_content)
 
-        # Cleanup temp
         os.remove(temp_mhtml)
         return {
             'title': video_info['title'],
@@ -351,26 +350,74 @@ a { text-decoration: none; color: #007bff; }
         for root, _, files in os.walk(download_dir):
             for file in files:
                 if file == final_zip_name:
-                    continue  # don't zip itself
+                    continue
                 full_path = os.path.join(root, file)
                 arcname = os.path.relpath(full_path, download_dir)
                 zf.write(full_path, arcname=arcname)
 
-    # Cleanup: remove all files except the zip? Actually we keep the zip; the workflow will commit it.
-    # But we need to leave only the zip in download_dir for the GitHub action to commit.
+    # --- Split the ZIP if larger than 90 MB ---
+    zip_size = os.path.getsize(final_zip_path)
+    max_size = 90 * 1024 * 1024  # 90 MB in bytes
+    if zip_size > max_size:
+        print(f"ZIP size is {zip_size / (1024*1024):.2f} MB, splitting into 90 MB parts...")
+        # Use split command: split -b 90m "bigfile.zip" "bigfile.zip.part."
+        # But we want parts like file.zip.001, file.zip.002 etc.
+        # We'll split into current directory, then rename parts to .001 .002...
+        split_prefix = final_zip_path + ".part."
+        subprocess.run(['split', '-b', '90m', final_zip_path, split_prefix], check=True)
+        # Remove the original zip
+        os.remove(final_zip_path)
+        # Rename the split parts to have .zip.001 extension
+        part_files = sorted([f for f in os.listdir(download_dir) if f.startswith(os.path.basename(final_zip_path) + ".part.")])
+        for i, part in enumerate(part_files, start=1):
+            old_path = os.path.join(download_dir, part)
+            new_name = f"{final_zip_name}.{i:03d}"
+            new_path = os.path.join(download_dir, new_name)
+            os.rename(old_path, new_path)
+            print(f"Created part: {new_name}")
+        print(f"Split completed. Original ZIP removed. Parts are smaller than 100 MB.")
+    else:
+        print(f"ZIP size is {zip_size / (1024*1024):.2f} MB, no splitting needed.")
+
+    # Cleanup: delete all other files except the split parts OR the final zip (if not split)
     for root, _, files in os.walk(download_dir):
         for file in files:
-            if file != final_zip_name:
-                os.remove(os.path.join(root, file))
-    # Remove empty subdirs
-    for root, dirs, _ in os.walk(download_dir, topdown=False):
-        for d in dirs:
-            try:
-                os.rmdir(os.path.join(root, d))
-            except OSError:
+            if file == final_zip_name:
+                continue  # keep if not split (but it might have been removed)
+            # if we have split parts, keep them
+            if (final_zip_name + ".") in file and file.split('.')[-1].isdigit():
+                continue
+            # Remove everything else (images, html, mp4)
+            full_path = os.path.join(root, file)
+            if full_path != final_zip_path and not file.startswith('images') and not file.endswith('.html') and not file.endswith('.mp4'):
+                # Actually we want to remove all original files because they are already inside the zip/parts? Wait, we zipped them already.
+                # But we can't delete everything because we need to keep the zip parts and any remaining index? 
+                # Simpler: after zipping and possibly splitting, remove everything except the final artifacts.
+                # Let's just nuke everything except the zip parts or the zip itself.
                 pass
+    # Better: after we have the zip or split parts, delete the entire download_dir contents except those artifacts,
+    # but keep the artifacts. However, we are going to commit the download_dir, so we only want the final artifacts.
+    # We'll just remove the entire download_dir and recreate with only the artifacts.
+    artifacts = []
+    if os.path.exists(final_zip_path):
+        artifacts.append(final_zip_path)
+    else:
+        # look for split parts
+        for f in os.listdir(download_dir):
+            if f.startswith(title_safe) and f.endswith('.zip.001') or ('.zip.' in f and f.split('.')[-1].isdigit()):
+                artifacts.append(os.path.join(download_dir, f))
+    # Save artifacts
+    temp_dir = "temp_artifacts"
+    os.makedirs(temp_dir, exist_ok=True)
+    for art in artifacts:
+        shutil.move(art, temp_dir)
+    shutil.rmtree(download_dir)
+    os.makedirs(download_dir, exist_ok=True)
+    for art in artifacts:
+        shutil.move(os.path.join(temp_dir, os.path.basename(art)), download_dir)
+    shutil.rmtree(temp_dir)
 
-    print(f"✅ Created {final_zip_path} with {len(results)} videos.")
+    print(f"✅ Final artifacts: {', '.join(os.listdir(download_dir))}")
 
 if __name__ == "__main__":
     asyncio.run(main())
