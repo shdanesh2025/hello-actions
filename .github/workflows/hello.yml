@@ -1,13 +1,40 @@
-name: Hello World
+name: Download and Archive Videos
 
 on:
-  push:
-    branches: [ main ]   # triggers on push to main
-  workflow_dispatch:     # allows manual triggering from the Actions tab
+  workflow_dispatch:
+    inputs:
+      urls:
+        description: 'Video URLs (one per line or comma‑separated)'
+        required: true
+        type: string
+
+permissions:
+  contents: write          # Needed to push the commit
 
 jobs:
-  say-hello:
+  download-and-zip:
     runs-on: ubuntu-latest
     steps:
-      - name: Print greeting
-        run: echo "Hello, World!"
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          pip install xvideos_api
+
+      - name: Download and zip videos
+        run: |
+          python download_and_zip.py "${{ github.event.inputs.urls }}"
+
+      - name: Commit and push archive
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add videos_archive.zip
+          git commit -m "Add video archive" || echo "No changes to commit"
+          git push
