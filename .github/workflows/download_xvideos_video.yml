@@ -1,10 +1,10 @@
-name: Download MyVideos Video(s)
+name: Download Single xvideos Video
 
 on:
   workflow_dispatch:
     inputs:
-      urls:
-        description: 'Video URL(s) – comma separated (e.g., https://myvideos.com/123, https://myvideos.com/456)'
+      url:
+        description: 'Video page URL (e.g., https://www.xvideos.com/... )'
         required: true
         type: string
       quality:
@@ -23,22 +23,30 @@ permissions:
 jobs:
   download:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
           python-version: '3.10'
+
       - name: Install dependencies
-        run: pip install pyppeteer beautifulsoup4 lxml httpx
+        run: |
+          pip install pyppeteer beautifulsoup4 lxml httpx
+
       - name: Run video downloader
         run: |
-          python download_myvideos_video.py \
-            --urls "${{ github.event.inputs.urls }}" \
+          python download_xvideos_video.py \
+            --url "${{ github.event.inputs.url }}" \
             --quality "${{ github.event.inputs.quality }}"
-      - name: Commit and push ZIP
+
+      - name: Commit and push final ZIP
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add download/
-          git commit -m "Add downloaded video(s)" || echo "No changes"
+          git commit -m "Add downloaded video: ${{ github.event.inputs.url }}" || echo "No changes to commit"
           git push
