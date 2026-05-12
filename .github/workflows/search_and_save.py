@@ -1,40 +1,59 @@
-import sys
-import os
-import json
-from datetime import datetime
-from xvideos_api import Client        # ← CHANGE THIS if the module name differs
+name: Save xvideos.com Search Results as Clickable Grid
 
-def sanitize_filename(text):
-    safe = "".join(c for c in text if c.isalnum() or c in " _-")
-    return safe.strip().replace(" ", "_")[:100]
+on:
+  workflow_dispatch:
+    inputs:
+      query:
+        description: 'Search query (e.g., sophie dee anal)'
+        required: true
+        type: string
+      durf:
+        description: 'Duration filter: short, medium, long, extralong (leave empty for all)'
+        required: false
+        type: choice
+        options:
+          - ''
+          - short
+          - medium
+          - long
+          - extralong
+      pages:
+        description: 'Page numbers (e.g., 0, 0-4, 0,2,5)'
+        required: true
+        type: string
+        default: '0-2'
 
-def search_and_save(query, pages):
-    client = Client()                   # Add authentication if needed (see note below)
-    print(f"Searching for '{query}' with {pages} page(s)...")
-    videos = client.search(query, pages=pages)
-    print(f"Found {len(videos)} results.")
+permissions:
+  contents: write
 
-    # Convert video objects to dictionaries
-    try:
-        results = [v.to_dict() if hasattr(v, 'to_dict') else v.__dict__ for v in videos]
-    except Exception:
-        results = [str(v) for v in videos]
+jobs:
+  download:
+    runs-on: ubuntu-latest
 
-    output_dir = "search_results"
-    os.makedirs(output_dir, exist_ok=True)
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    safe_query = sanitize_filename(query)
-    filename = f"{safe_query}_{timestamp}.json"
-    filepath = os.path.join(output_dir, filename)
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    with open(filepath, "w", encoding="utf-8") as f:
-        json.dump(results, f, indent=2, ensure_ascii=False)
-    print(f"Saved to {filepath}")
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
 
-if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print("Usage: python search_and_save.py <query> [pages]")
-        sys.exit(1)
-    query = sys.argv[1]
-    pages = int(sys.argv[2]) if len(sys.argv) > 2 else 1
-    search_and_save(query, pages)
+      - name: Install dependencies
+        run: |
+          pip install pyppeteer beautifulsoup4 lxml httpx
+
+      - name: Run xvideos search downloader and grid builder
+        run: |
+          python save_xvideos_search.py \
+            --query "${{ github.event.inputs.query }}" \
+            --pages "${{ github.event.inputs.pages }}" \
+            ${{ github.event.inputs.durf != '' && format('--durf {0}', github.event.inputs.durf) || '' }}
+
+      - name: Commit and push final ZIP
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add download/
+          git commit -m "Add clickable image grid ZIP for xvideos search: ${{ github.event.inputs.query }}" || echo "No changes to commit"
+          git push
