@@ -1,10 +1,10 @@
-name: Download MyVideos Video(s)
+name: Download xvideos Video(s)
 
 on:
   workflow_dispatch:
     inputs:
       urls:
-        description: 'Video URL(s) – comma separated (e.g., https://myvideos.com/123, https://myvideos.com/456)'
+        description: 'Video URL(s) – comma separated (e.g., https://xvideos.com/123, https://xvideos.com/456)'
         required: true
         type: string
       quality:
@@ -32,7 +32,7 @@ jobs:
         run: pip install pyppeteer beautifulsoup4 lxml httpx
       - name: Run video downloader
         run: |
-          python download_myvideos_video.py \
+          python download_xvideos_video.py \
             --urls "${{ github.event.inputs.urls }}" \
             --quality "${{ github.event.inputs.quality }}"
       - name: Commit and push ZIP
