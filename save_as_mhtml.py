@@ -14,7 +14,10 @@ def sanitize_filename(name: str) -> str:
 async def save_mhtml_and_requests(url: str, mhtml_output: str, requests_output: str):
     """
     Save webpage as MHTML and capture all HTTPS request URLs.
-    Waits for and clicks an element with class 'play-btn' before saving.
+    Steps:
+      1. Wait for and click disclaimer button (id="disclaimer-over18btn")
+      2. Wait for and click play button (class="play-btn")
+      3. Capture snapshot & requests
     """
     browser = await launch(headless=True, args=['--no-sandbox'])
     page = await browser.newPage()
@@ -32,19 +35,31 @@ async def save_mhtml_and_requests(url: str, mhtml_output: str, requests_output: 
 
     # Navigate and wait for initial network idle
     await page.goto(url, waitUntil='networkidle0')
+    print("Page loaded")
 
-    # Wait for the play button and click it
+    # Step 1: Wait for disclaimer button and click it
     try:
-        print("Waiting for '.play-btn' element...")
-        await page.waitForSelector('.play-btn', timeout=10000)  # 10 seconds timeout
+        print("Waiting for disclaimer button '#disclaimer-over18btn'...")
+        await page.waitForSelector('#disclaimer-over18btn', timeout=10000)  # 10 seconds
+        await page.click('#disclaimer-over18btn')
+        print("Clicked disclaimer button")
+        # Give a moment for any DOM updates after click
+        await asyncio.sleep(1)
+    except Exception as e:
+        print(f"Disclaimer button not found or click failed: {e}")
+
+    # Step 2: Wait for play button and click it
+    try:
+        print("Waiting for play button '.play-btn'...")
+        await page.waitForSelector('.play-btn', timeout=10000)
         await page.click('.play-btn')
         print("Clicked play button")
-        # Give time for video/stream requests to be made
+        # Wait for video/stream requests to be made
         await asyncio.sleep(3)
     except Exception as e:
         print(f"Play button not found or click failed: {e}")
 
-    # Capture MHTML snapshot (after click, includes any dynamic changes)
+    # Capture MHTML snapshot (after both clicks)
     mhtml_data = await page._client.send('Page.captureSnapshot', {})
     with open(mhtml_output, 'wb') as f:
         f.write(mhtml_data['data'].encode())
@@ -89,7 +104,7 @@ def main():
     mhtml_path = os.path.join("temp", mhtml_filename)
     requests_path = os.path.join("temp", requests_filename)
 
-    print(f"Processing {args.url} → {mhtml_filename} and capturing HTTPS requests after clicking play button")
+    print(f"Processing {args.url} → {mhtml_filename} and capturing HTTPS requests")
     asyncio.run(save_mhtml_and_requests(args.url, mhtml_path, requests_path))
 
     # Create ZIP inside download folder containing both files
