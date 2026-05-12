@@ -1,0 +1,52 @@
+name: MHTML ذخیره صفحه به 
+
+
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: 'URL of the webpage to download'
+        required: true
+        type: string
+      title:
+        description: 'Optional title for the output file (no spaces/special chars)'
+        required: false
+        type: string
+
+        
+permissions:
+  contents: write
+
+
+jobs:
+  download:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          pip install pyppeteer
+
+      - name: Run MHTML downloader
+        run: |
+          python save_as_mhtml.py \
+            --url "${{ github.event.inputs.url }}" \
+            ${GITHUB_ACTOR:+--title "${{ github.event.inputs.title }}"}
+
+
+
+      - name: Commit and push download folder to repo
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add download/
+          git commit -m "Add MHTML archive for ${{ github.event.inputs.url }}" || echo "No changes to commit"
+          git push
