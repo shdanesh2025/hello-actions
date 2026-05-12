@@ -1,0 +1,59 @@
+name: Save xvideos.com Search Results as MHTML (Collective ZIP)
+
+on:
+  workflow_dispatch:
+    inputs:
+      query:
+        description: 'Search query (e.g., sophie dee anal)'
+        required: true
+        type: string
+      durf:
+        description: 'Duration filter: short, medium, long, extralong (leave empty for all)'
+        required: false
+        type: choice
+        options:
+          - ''
+          - short
+          - medium
+          - long
+          - extralong
+      pages:
+        description: 'Page numbers (e.g., 0, 0-4, 0,2,5)'
+        required: true
+        type: string
+        default: '0-2'
+
+permissions:
+  contents: write
+
+jobs:
+  download:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          pip install pyppeteer
+
+      - name: Run xvideos search downloader
+        run: |
+          python save_xvideos_search.py \
+            --query "${{ github.event.inputs.query }}" \
+            --pages "${{ github.event.inputs.pages }}" \
+            ${{ github.event.inputs.durf != '' && format('--durf {0}', github.event.inputs.durf) || '' }}
+
+      - name: Commit and push download folder
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add download/
+          git commit -m "Add collective MHTML ZIP for xvideos search: ${{ github.event.inputs.query }}" || echo "No changes to commit"
+          git push
