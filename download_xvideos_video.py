@@ -291,7 +291,7 @@ async def process_video(url, desired_quality, download_dir, images_dir, video_in
 # Main (supports single URL or multiple via --urls)
 # ----------------------------------------------------------------------
 async def main():
-    parser = argparse.ArgumentParser(description="Download one or more myvideos.com videos.")
+    parser = argparse.ArgumentParser(description="Download one or more xvideos.com videos.")
     parser.add_argument("--url", help="Single video URL")
     parser.add_argument("--urls", help="Comma-separated list of video URLs")
     parser.add_argument("--quality", choices=['240', '360', '720', '1080'], required=True)
