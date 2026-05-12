@@ -202,10 +202,11 @@ def generate_video_html(video_info, video_local_path, thumb_local_paths, origina
         }}
     }}
     copyBtn.addEventListener('click', () => copyToClipboard(originalUrl));
-    // Make thumbnails clickable to copy their URLs
+
+    // FIX: Thumbnails now copy the video URL, not the local image path
     const thumbs = document.querySelectorAll('.thumb-gallery img');
     thumbs.forEach(img => {{
-        img.addEventListener('click', () => copyToClipboard(img.src));
+        img.addEventListener('click', () => copyToClipboard(originalUrl));
     }});
 </script>
 </body>
@@ -219,7 +220,6 @@ def generate_video_html(video_info, video_local_path, thumb_local_paths, origina
         thumbnails_html=thumb_html,
         original_url=original_url
     )
-
 # ----------------------------------------------------------------------
 # Process a single video URL (download video & assets, return info)
 # ----------------------------------------------------------------------
@@ -290,7 +290,7 @@ async def process_video(url, desired_quality, download_dir, images_dir, video_in
 # Main (supports single URL or multiple via --urls)
 # ----------------------------------------------------------------------
 async def main():
-    parser = argparse.ArgumentParser(description="Download one or more myvideos.com videos.")
+    parser = argparse.ArgumentParser(description="Download one or more xvideos.com videos.")
     parser.add_argument("--url", help="Single video URL")
     parser.add_argument("--urls", help="Comma-separated list of video URLs")
     parser.add_argument("--quality", choices=['240', '360', '720', '1080'], required=True)
