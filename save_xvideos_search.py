@@ -12,7 +12,7 @@ from urllib.parse import urlencode, urljoin, urlparse
 from bs4 import BeautifulSoup
 
 # ----------------------------------------------------------------------
-# Helper functions (same as before)
+# Helper functions
 # ----------------------------------------------------------------------
 def sanitize_filename(name: str) -> str:
     return re.sub(r'[\\/*?:"<>|]', "_", name)
@@ -64,6 +64,7 @@ def parse_search_page(html_content: str, base_url: str):
         if not thumb_under:
             continue
 
+        # Extract video URL and thumbnail URL
         thumb_div = thumb_inside.find('div', class_='thumb')
         if not thumb_div:
             continue
@@ -77,6 +78,7 @@ def parse_search_page(html_content: str, base_url: str):
         video_url = urljoin(base_url, a_tag['href'])
         thumb_url = urljoin(base_url, img_tag['src'])
 
+        # Extract title
         title_tag = thumb_under.find('p', class_='title')
         title = ''
         if title_tag:
@@ -84,12 +86,14 @@ def parse_search_page(html_content: str, base_url: str):
             if a_title:
                 title = a_title.get('title', '')
                 if not title:
+                    # Remove duration span from text
                     a_clone = BeautifulSoup(str(a_title), 'html.parser')
                     dur_span = a_clone.find('span', class_='duration')
                     if dur_span:
                         dur_span.decompose()
                     title = a_clone.get_text(strip=True)
 
+        # Extract duration
         duration = ''
         if title_tag:
             dur_span = title_tag.find('span', class_='duration')
@@ -102,6 +106,7 @@ def parse_search_page(html_content: str, base_url: str):
                 if dur_span_meta:
                     duration = dur_span_meta.get_text(strip=True)
 
+        # Extract views
         views = ''
         metadata = thumb_under.find('p', class_='metadata')
         if metadata:
@@ -121,32 +126,20 @@ def parse_search_page(html_content: str, base_url: str):
         })
     return results
 
-# ----------------------------------------------------------------------
-# New grid HTML with selection and column control
-# ----------------------------------------------------------------------
 def generate_grid_html(video_items: list) -> str:
     html_template = """<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MyVideos Search Results</title>
+    <title>xvideos Search Results</title>
     <style>
         * {{ box-sizing: border-box; margin: 0; padding: 0; }}
         body {{ font-family: Arial, sans-serif; background: #f5f5f5; padding: 20px; }}
         .container {{ max-width: 1400px; margin: 0 auto; }}
-        h1 {{ text-align: center; margin-bottom: 20px; }}
-        .controls {{ background: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; gap: 15px; align-items: center; flex-wrap: wrap; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }}
-        .controls label {{ font-weight: bold; }}
-        .controls select, .controls button {{ padding: 8px 12px; font-size: 14px; border-radius: 4px; border: 1px solid #ccc; cursor: pointer; }}
-        .controls button {{ background: #007bff; color: white; border: none; }}
-        .controls button:hover {{ background: #0056b3; }}
-        .grid {{ display: grid; gap: 20px; transition: 0.2s; }}
-        .grid.cols-2 {{ grid-template-columns: repeat(2, 1fr); }}
-        .grid.cols-3 {{ grid-template-columns: repeat(3, 1fr); }}
-        .grid.cols-4 {{ grid-template-columns: repeat(4, 1fr); }}
-        .card {{ background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1); cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; border: 2px solid transparent; }}
-        .card.selected {{ border-color: #007bff; background: #e7f3ff; }}
+        h1 {{ text-align: center; margin-bottom: 30px; color: #333; }}
+        .grid {{ display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }}
+        .card {{ background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1); cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; }}
         .card:hover {{ transform: scale(1.02); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }}
         .card img {{ width: 100%; aspect-ratio: 16 / 9; object-fit: cover; display: block; }}
         .caption {{ padding: 12px; font-size: 14px; }}
@@ -154,96 +147,32 @@ def generate_grid_html(video_items: list) -> str:
         .details {{ display: flex; justify-content: space-between; color: #666; font-size: 12px; }}
         .duration {{ background: #e0e0e0; padding: 2px 6px; border-radius: 4px; }}
         .toast {{ position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #333; color: white; padding: 12px 24px; border-radius: 8px; font-size: 14px; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 1000; }}
-        @media (max-width: 1024px) {{ .grid.cols-4 {{ grid-template-columns: repeat(3, 1fr); }} }}
-        @media (max-width: 768px) {{ .grid.cols-3, .grid.cols-4 {{ grid-template-columns: repeat(2, 1fr); }} }}
-        @media (max-width: 480px) {{ .grid {{ grid-template-columns: 1fr !important; }} }}
+        @media (max-width: 1024px) {{ .grid {{ grid-template-columns: repeat(3, 1fr); }} }}
+        @media (max-width: 768px) {{ .grid {{ grid-template-columns: repeat(2, 1fr); }} }}
+        @media (max-width: 480px) {{ .grid {{ grid-template-columns: 1fr; }} }}
     </style>
 </head>
 <body>
 <div class="container">
-    <h1>MyVideos Search Results</h1>
-    <div class="controls">
-        <label>Columns: </label>
-        <select id="columnSelect">
-            <option value="2">2 columns</option>
-            <option value="3" selected>3 columns</option>
-            <option value="4">4 columns</option>
-        </select>
-        <button id="copyBtn">📋 Copy Selected URLs (as array)</button>
-        <span id="selectionCount" style="margin-left: auto;">Selected: 0</span>
-    </div>
-    <div class="grid cols-3" id="grid">
+    <h1>xvideos Search Results</h1>
+    <div class="grid" id="grid">
         {items}
     </div>
 </div>
 <div class="toast" id="toast">Copied to clipboard!</div>
-
 <script>
-    const grid = document.getElementById('grid');
-    const columnSelect = document.getElementById('columnSelect');
-    const copyBtn = document.getElementById('copyBtn');
-    const toast = document.getElementById('toast');
-    const selectionCountSpan = document.getElementById('selectionCount');
-
-    let selectedCards = new Set();
-
-    function updateSelectionCount() {{
-        selectionCountSpan.textContent = `Selected: ${{selectedCards.size}}`;
-    }}
-
-    function showToast(message) {{
-        toast.textContent = message;
-        toast.style.opacity = '1';
-        setTimeout(() => {{ toast.style.opacity = '0'; }}, 1500);
-    }}
-
-    // Column switching
-    columnSelect.addEventListener('change', (e) => {{
-        const cols = e.target.value;
-        grid.className = `grid cols-${{cols}}`;
-    }});
-
-    // Card selection (click to toggle)
     const cards = document.querySelectorAll('.card');
-    cards.forEach(card => {{
-        card.addEventListener('click', (e) => {{
-            e.stopPropagation();
-            const url = card.getAttribute('data-url');
-            if (selectedCards.has(url)) {{
-                selectedCards.delete(url);
-                card.classList.remove('selected');
-            }} else {{
-                selectedCards.add(url);
-                card.classList.add('selected');
-            }}
-            updateSelectionCount();
-        }});
-    }});
-
-    // Copy selected URLs as JSON array
-    async function copySelectedUrls() {{
-        if (selectedCards.size === 0) {{
-            showToast('No videos selected');
-            return;
-        }}
-        const urls = Array.from(selectedCards);
-        const jsonStr = JSON.stringify(urls);
-        try {{
-            await navigator.clipboard.writeText(jsonStr);
-            showToast(`Copied ${{selectedCards.size}} URLs as JSON array`);
-        }} catch (err) {{
-            alert('Manual copy:\\n' + jsonStr);
-        }}
+    const toast = document.getElementById('toast');
+    function showToast() {{ toast.style.opacity = '1'; setTimeout(() => {{ toast.style.opacity = '0'; }}, 1500); }}
+    async function copyToClipboard(text) {{
+        try {{ await navigator.clipboard.writeText(text); showToast(); }}
+        catch (err) {{ console.error(err); alert('Press Ctrl+C to copy:\\n' + text); }}
     }}
-
-    copyBtn.addEventListener('click', copySelectedUrls);
-
-    // Keyboard shortcut: Ctrl+C (Cmd+C on Mac) when any card selected
-    document.addEventListener('keydown', (e) => {{
-        if ((e.ctrlKey || e.metaKey) && e.key === 'c' && selectedCards.size > 0) {{
-            e.preventDefault();
-            copySelectedUrls();
-        }}
+    cards.forEach(card => {{
+        card.addEventListener('click', () => {{
+            const url = card.getAttribute('data-url');
+            copyToClipboard(url);
+        }});
     }});
 </script>
 </body>
@@ -264,9 +193,8 @@ def generate_grid_html(video_items: list) -> str:
             </div>
         ''')
     return html_template.format(items='\n'.join(items_html))
-
 # ----------------------------------------------------------------------
-# Main (unchanged flow, only uses new HTML generator)
+# Main async function
 # ----------------------------------------------------------------------
 async def main():
     parser = argparse.ArgumentParser()
@@ -275,7 +203,7 @@ async def main():
     parser.add_argument("--pages", required=True)
     args = parser.parse_args()
 
-    base_url = "https://www.myvideos.com/"
+    base_url = "https://www.xvideos.com/"
     query_plus = args.query.replace(' ', '+')
     durf_value = get_durf_value(args.durf) if args.durf else ''
     params = {'k': query_plus, 'sort': 'relevance', 'datef': '', 'durf': durf_value, 'quality': ''}
@@ -321,7 +249,7 @@ async def main():
 
     print(f"Total items: {len(all_video_items)}")
 
-    # Download thumbnails (deduplicated)
+    # Download thumbnails
     images_dir = os.path.join(download_dir, "images")
     os.makedirs(images_dir, exist_ok=True)
     unique_thumbs = {item['thumb_url'] for item in all_video_items}
@@ -358,7 +286,7 @@ async def main():
         shutil.rmtree(temp_mhtml_dir, ignore_errors=True)
         return
 
-    # Generate HTML using new version
+    # Generate HTML
     html_content = generate_grid_html(final_items)
     index_html_path = os.path.join(download_dir, "index.html")
     with open(index_html_path, 'w', encoding='utf-8') as f:
