@@ -92,29 +92,35 @@ def parse_video_page(html_content: str, base_url: str):
                 main_info['video_links'].append((quality, href))
 
     # ------------------------------------------------------------------
-    # Suggested videos – same logic as search version
+    # Suggested videos – FIXED: iterate each thumb-block container
     # ------------------------------------------------------------------
     suggested = []
-    for thumb_inside in soup.find_all('div', class_='thumb-inside'):
-        thumb_under = thumb_inside.find_next_sibling('div', class_='thumb-under')
-        if not thumb_under:
+    for block in soup.find_all('div', class_='thumb-block'):
+        inside = block.find('div', class_='thumb-inside')
+        under  = block.find('div', class_='thumb-under')
+        if not inside or not under:
             continue
 
-        thumb_div = thumb_inside.find('div', class_='thumb')
+        thumb_div = inside.find('div', class_='thumb')
         if not thumb_div:
             continue
         a_tag = thumb_div.find('a')
         if not a_tag or not a_tag.get('href'):
             continue
         img_tag = a_tag.find('img')
-        if not img_tag or not img_tag.get('src'):
+        if not img_tag:
+            continue
+
+        # Prefer real thumbnail from data-sfwthumb, fallback to src
+        thumb_src = img_tag.get('data-sfwthumb') or img_tag.get('src')
+        if not thumb_src:
             continue
 
         video_url = urljoin(base_url, a_tag['href'])
-        thumb_url = urljoin(base_url, img_tag['src'])
+        thumb_url = urljoin(base_url, thumb_src)
 
         # Title
-        title_tag = thumb_under.find('p', class_='title')
+        title_tag = under.find('p', class_='title')
         title = ''
         if title_tag:
             a_title = title_tag.find('a')
@@ -134,7 +140,7 @@ def parse_video_page(html_content: str, base_url: str):
             if dur_span:
                 duration = dur_span.get_text(strip=True)
         if not duration:
-            metadata = thumb_under.find('p', class_='metadata')
+            metadata = under.find('p', class_='metadata')
             if metadata:
                 dur_span_meta = metadata.find('span', class_='duration')
                 if dur_span_meta:
@@ -142,21 +148,23 @@ def parse_video_page(html_content: str, base_url: str):
 
         # Views
         views = ''
-        metadata = thumb_under.find('p', class_='metadata')
+        metadata = under.find('p', class_='metadata')
         if metadata:
             meta_text = metadata.get_text(strip=True)
-            match = re.search(r'([\d.]+[kKmM]?)\s*[Vv]iews', meta_text)
+            match = re.search(r'([\d,.]+[kKmM]?)\s*Views', meta_text)
             if match:
                 views = match.group(1) + ' Views'
             elif 'Views' in meta_text:
-                views = meta_text.split('Views')[0].strip() + ' Views'
+                parts = meta_text.split('Views')
+                if parts[0].strip():
+                    views = parts[0].strip() + ' Views'
 
         suggested.append({
             'video_url': video_url,
             'thumb_url': thumb_url,
             'title': title,
             'duration': duration,
-            'views': views
+            'views': views,
         })
 
     return main_info, suggested
