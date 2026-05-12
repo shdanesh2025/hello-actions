@@ -48,7 +48,7 @@ async def save_mhtml(url: str, output_file: str):
         f.write(mhtml_data['data'].encode())
     await browser.close()
 
-def main():
+async def main():
     parser = argparse.ArgumentParser(description="Download xvideos.com search results pages collectively as one ZIP.")
     parser.add_argument("--query", required=True, help="Search query (e.g., 'sophie dee anal')")
     parser.add_argument("--durf", choices=['short', 'medium', 'long', 'extralong'], default=None,
