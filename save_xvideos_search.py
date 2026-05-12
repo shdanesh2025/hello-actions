@@ -134,22 +134,22 @@ def generate_grid_html(video_items: list) -> str:
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>xvideos Search Results</title>
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: Arial, sans-serif; background: #f5f5f5; padding: 20px; }
-        .container { max-width: 1400px; margin: 0 auto; }
-        h1 { text-align: center; margin-bottom: 30px; color: #333; }
-        .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
-        .card { background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1); cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; }
-        .card:hover { transform: scale(1.02); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
-        .card img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; display: block; }
-        .caption { padding: 12px; font-size: 14px; }
-        .title { font-weight: bold; margin-bottom: 8px; color: #222; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .details { display: flex; justify-content: space-between; color: #666; font-size: 12px; }
-        .duration { background: #e0e0e0; padding: 2px 6px; border-radius: 4px; }
-        .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #333; color: white; padding: 12px 24px; border-radius: 8px; font-size: 14px; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 1000; }
-        @media (max-width: 1024px) { .grid { grid-template-columns: repeat(3, 1fr); } }
-        @media (max-width: 768px) { .grid { grid-template-columns: repeat(2, 1fr); } }
-        @media (max-width: 480px) { .grid { grid-template-columns: 1fr; } }
+        * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+        body {{ font-family: Arial, sans-serif; background: #f5f5f5; padding: 20px; }}
+        .container {{ max-width: 1400px; margin: 0 auto; }}
+        h1 {{ text-align: center; margin-bottom: 30px; color: #333; }}
+        .grid {{ display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }}
+        .card {{ background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1); cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; }}
+        .card:hover {{ transform: scale(1.02); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }}
+        .card img {{ width: 100%; aspect-ratio: 16 / 9; object-fit: cover; display: block; }}
+        .caption {{ padding: 12px; font-size: 14px; }}
+        .title {{ font-weight: bold; margin-bottom: 8px; color: #222; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }}
+        .details {{ display: flex; justify-content: space-between; color: #666; font-size: 12px; }}
+        .duration {{ background: #e0e0e0; padding: 2px 6px; border-radius: 4px; }}
+        .toast {{ position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #333; color: white; padding: 12px 24px; border-radius: 8px; font-size: 14px; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 1000; }}
+        @media (max-width: 1024px) {{ .grid {{ grid-template-columns: repeat(3, 1fr); }} }}
+        @media (max-width: 768px) {{ .grid {{ grid-template-columns: repeat(2, 1fr); }} }}
+        @media (max-width: 480px) {{ .grid {{ grid-template-columns: 1fr; }} }}
     </style>
 </head>
 <body>
@@ -193,7 +193,6 @@ def generate_grid_html(video_items: list) -> str:
             </div>
         ''')
     return html_template.format(items='\n'.join(items_html))
-
 # ----------------------------------------------------------------------
 # Main async function
 # ----------------------------------------------------------------------
