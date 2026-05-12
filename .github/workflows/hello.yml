@@ -1,0 +1,13 @@
+name: Hello World
+
+on:
+  push:
+    branches: [ main ]   # triggers on push to main
+  workflow_dispatch:     # allows manual triggering from the Actions tab
+
+jobs:
+  say-hello:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Print greeting
+        run: echo "Hello, World!"
