@@ -1,0 +1,39 @@
+name: Direct Download URLs
+
+on:
+  workflow_dispatch:
+    inputs:
+      urls:
+        description: 'URLs to download (one per line)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  download-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: pip install httpx
+
+      - name: Run downloader
+        run: python download_urls.py --urls "${{ github.event.inputs.urls }}"
+
+      - name: Commit and push ZIP to direct_downloads/
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add direct_downloads/
+          git commit -m "Add direct downloads from user-provided URLs" || echo "No changes to commit"
+          git push
