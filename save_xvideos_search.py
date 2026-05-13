@@ -41,7 +41,9 @@ def get_durf_value(durf_option: str) -> str:
     return mapping.get(durf_option, '')
 
 
-async def save_mhtml(url: str, output_file: str, screenshot_path: str = None):
+async def save_mhtml(url: str, output_file: str,
+                     screenshot_path: str = None,
+                     html_path: str = None):
     browser = await launch(headless=True, args=['--no-sandbox'])
     page = await browser.newPage()
     await page.goto(url, waitUntil='networkidle0')
@@ -50,6 +52,13 @@ async def save_mhtml(url: str, output_file: str, screenshot_path: str = None):
     if screenshot_path:
         await page.screenshot({'path': screenshot_path, 'type': 'jpeg', 'quality': 85})
         print(f"Screenshot saved to {screenshot_path}")
+
+    # Save full rendered HTML if requested
+    if html_path:
+        html_content = await page.content()
+        with open(html_path, 'w', encoding='utf-8') as f:
+            f.write(html_content)
+        print(f"Rendered HTML saved to {html_path}")
 
     mhtml_data = await page._client.send('Page.captureSnapshot', {})
     with open(output_file, 'wb') as f:
@@ -75,7 +84,7 @@ def parse_search_page(html_content: str, base_url: str):
     # Work on each video block – prevents any cross‑block leaking
     for block in soup.find_all('div', class_='thumb-block'):
         inside = block.find('div', class_='thumb-inside')
-        under = block.find('div', class_='thumb-under')
+        under  = block.find('div', class_='thumb-under')
         if not inside or not under:
             continue
 
@@ -230,6 +239,8 @@ async def main():
     parser.add_argument("--pages", required=True)
     parser.add_argument("--screenshot", action="store_true", default=False,
                         help="Take a screenshot of the first search page")
+    parser.add_argument("--save-html", action="store_true", default=False,
+                        help="Save full rendered HTML of the first page as page.html")
     args = parser.parse_args()
 
     base_url = "https://www.xvideos.com/"
@@ -246,6 +257,8 @@ async def main():
     os.makedirs(temp_mhtml_dir, exist_ok=True)
 
     screenshot_path = os.path.join(download_dir, "screenshot.jpg") if args.screenshot else None
+    html_path = os.path.join(download_dir, "page.html") if args.save_html else None
+
     saved_mhtmls = []
     first_page = True
 
@@ -257,8 +270,12 @@ async def main():
         mhtml_path = os.path.join(temp_mhtml_dir, mhtml_filename)
         print(f"Downloading page {page_num}: {page_url}")
         try:
+            # Pass screenshot and HTML save paths only for the first page
             sc_path = screenshot_path if first_page else None
-            await save_mhtml(page_url, mhtml_path, screenshot_path=sc_path)
+            h_path  = html_path if first_page else None
+            await save_mhtml(page_url, mhtml_path,
+                             screenshot_path=sc_path,
+                             html_path=h_path)
             saved_mhtmls.append(mhtml_path)
             first_page = False
         except Exception as e:
@@ -343,6 +360,9 @@ async def main():
         # Include screenshot if taken
         if screenshot_path and os.path.exists(screenshot_path):
             zf.write(screenshot_path, arcname="screenshot.jpg")
+        # Include saved rendered HTML if requested
+        if html_path and os.path.exists(html_path):
+            zf.write(html_path, arcname="page.html")
 
     # Cleanup
     os.remove(index_html_path)
@@ -350,6 +370,8 @@ async def main():
     shutil.rmtree(temp_mhtml_dir)
     if screenshot_path and os.path.exists(screenshot_path):
         os.remove(screenshot_path)
+    if html_path and os.path.exists(html_path):
+        os.remove(html_path)
 
     print(f"✅ Created {final_zip_path} with {len(final_items)} videos.")
 
