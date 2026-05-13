@@ -22,6 +22,11 @@ on:
         required: true
         type: string
         default: '0-2'
+      screenshot:
+        description: 'Take a screenshot of the first search results page'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -48,7 +53,8 @@ jobs:
           python save_xvideos_search.py \
             --query "${{ github.event.inputs.query }}" \
             --pages "${{ github.event.inputs.pages }}" \
-            ${{ github.event.inputs.durf != '' && format('--durf {0}', github.event.inputs.durf) || '' }}
+            ${{ github.event.inputs.durf != '' && format('--durf {0}', github.event.inputs.durf) || '' }} \
+            ${{ github.event.inputs.screenshot == 'true' && '--screenshot' || '' }}
 
       - name: Commit and push final ZIP
         run: |
