@@ -11,11 +11,13 @@ from pyppeteer import launch
 from urllib.parse import urlencode, urljoin, urlparse
 from bs4 import BeautifulSoup
 
+
 # ----------------------------------------------------------------------
 # Helper functions
 # ----------------------------------------------------------------------
 def sanitize_filename(name: str) -> str:
     return re.sub(r'[\\/*?:"<>|]', "_", name)
+
 
 def parse_pages(pages_spec: str):
     pages = set()
@@ -28,6 +30,7 @@ def parse_pages(pages_spec: str):
             pages.add(int(part))
     return sorted(pages)
 
+
 def get_durf_value(durf_option: str) -> str:
     mapping = {
         'short': '1-3min',
@@ -37,14 +40,22 @@ def get_durf_value(durf_option: str) -> str:
     }
     return mapping.get(durf_option, '')
 
-async def save_mhtml(url: str, output_file: str):
+
+async def save_mhtml(url: str, output_file: str, screenshot_path: str = None):
     browser = await launch(headless=True, args=['--no-sandbox'])
     page = await browser.newPage()
     await page.goto(url, waitUntil='networkidle0')
+
+    # Take screenshot if requested
+    if screenshot_path:
+        await page.screenshot({'path': screenshot_path, 'type': 'jpeg', 'quality': 85})
+        print(f"Screenshot saved to {screenshot_path}")
+
     mhtml_data = await page._client.send('Page.captureSnapshot', {})
     with open(output_file, 'wb') as f:
         f.write(mhtml_data['data'].encode())
     await browser.close()
+
 
 def extract_html_from_mhtml(mhtml_path: str) -> str:
     with open(mhtml_path, 'rb') as f:
@@ -56,6 +67,7 @@ def extract_html_from_mhtml(mhtml_path: str) -> str:
             return payload.decode(charset, errors='replace')
     raise ValueError(f"No HTML part found in {mhtml_path}")
 
+
 def parse_search_page(html_content: str, base_url: str):
     soup = BeautifulSoup(html_content, 'html.parser')
     results = []
@@ -63,7 +75,7 @@ def parse_search_page(html_content: str, base_url: str):
     # Work on each video block – prevents any cross‑block leaking
     for block in soup.find_all('div', class_='thumb-block'):
         inside = block.find('div', class_='thumb-inside')
-        under  = block.find('div', class_='thumb-under')
+        under = block.find('div', class_='thumb-under')
         if not inside or not under:
             continue
 
@@ -137,6 +149,8 @@ def parse_search_page(html_content: str, base_url: str):
         })
 
     return results
+
+
 def generate_grid_html(video_items: list) -> str:
     html_template = """<!DOCTYPE html>
 <html lang="en">
@@ -204,6 +218,8 @@ def generate_grid_html(video_items: list) -> str:
             </div>
         ''')
     return html_template.format(items='\n'.join(items_html))
+
+
 # ----------------------------------------------------------------------
 # Main async function
 # ----------------------------------------------------------------------
@@ -212,6 +228,8 @@ async def main():
     parser.add_argument("--query", required=True)
     parser.add_argument("--durf", choices=['short', 'medium', 'long', 'extralong'], default=None)
     parser.add_argument("--pages", required=True)
+    parser.add_argument("--screenshot", action="store_true", default=False,
+                        help="Take a screenshot of the first search page")
     args = parser.parse_args()
 
     base_url = "https://www.xvideos.com/"
@@ -227,7 +245,10 @@ async def main():
     temp_mhtml_dir = "temp_mhtml"
     os.makedirs(temp_mhtml_dir, exist_ok=True)
 
+    screenshot_path = os.path.join(download_dir, "screenshot.jpg") if args.screenshot else None
     saved_mhtmls = []
+    first_page = True
+
     for page_num in pages_to_download:
         page_url = f"{base_search_url}&p={page_num}"
         query_safe = sanitize_filename(args.query.replace(' ', '_'))
@@ -236,8 +257,10 @@ async def main():
         mhtml_path = os.path.join(temp_mhtml_dir, mhtml_filename)
         print(f"Downloading page {page_num}: {page_url}")
         try:
-            await save_mhtml(page_url, mhtml_path)
+            sc_path = screenshot_path if first_page else None
+            await save_mhtml(page_url, mhtml_path, screenshot_path=sc_path)
             saved_mhtmls.append(mhtml_path)
+            first_page = False
         except Exception as e:
             print(f"Error page {page_num}: {e}")
 
@@ -317,13 +340,19 @@ async def main():
                 full_path = os.path.join(root, file)
                 arcname = os.path.relpath(full_path, download_dir)
                 zf.write(full_path, arcname=arcname)
+        # Include screenshot if taken
+        if screenshot_path and os.path.exists(screenshot_path):
+            zf.write(screenshot_path, arcname="screenshot.jpg")
 
     # Cleanup
     os.remove(index_html_path)
     shutil.rmtree(images_dir)
     shutil.rmtree(temp_mhtml_dir)
+    if screenshot_path and os.path.exists(screenshot_path):
+        os.remove(screenshot_path)
 
     print(f"✅ Created {final_zip_path} with {len(final_items)} videos.")
+
 
 if __name__ == "__main__":
     asyncio.run(main())
