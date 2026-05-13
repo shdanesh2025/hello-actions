@@ -82,14 +82,18 @@ def parse_video_page(html_content: str, base_url: str):
             if abs_url not in main_info['thumbnails']:
                 main_info['thumbnails'].append(abs_url)
 
-    # Main video download links
     for a in soup.find_all('a', href=True):
-        href = a['href']
-        if href.startswith('https://mp4'):
-            match = re.search(r'video_(\d+)p', href)
-            if match:
-                quality = int(match.group(1))
-                main_info['video_links'].append((quality, href))
+	    href = a['href']
+	    if href.startswith('https://mp4') and '.mp4' in href:
+	        # Try to extract quality from pattern like video_720p
+	        match = re.search(r'video_(\d+)p', href)
+	        if match:
+	            quality = int(match.group(1))
+	        else:
+	            # Fallback: assign a default quality (e.g., 480 for "sd" or 0 for unknown)
+	            # You can also try to parse 'mp4_sd' -> 480, 'mp4_hd' -> 720, etc.
+	            quality = 480  # treat unknown as medium quality
+	        main_info['video_links'].append((quality, href))
 
     # ------------------------------------------------------------------
     # Suggested videos – FIXED: iterate each thumb-block container
