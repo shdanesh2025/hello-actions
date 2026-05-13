@@ -27,6 +27,11 @@ on:
         required: false
         type: boolean
         default: false
+      save_html:
+        description: 'Save the full rendered HTML of the first page as page.html'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -54,7 +59,8 @@ jobs:
             --query "${{ github.event.inputs.query }}" \
             --pages "${{ github.event.inputs.pages }}" \
             ${{ github.event.inputs.durf != '' && format('--durf {0}', github.event.inputs.durf) || '' }} \
-            ${{ github.event.inputs.screenshot == 'true' && '--screenshot' || '' }}
+            ${{ github.event.inputs.screenshot == 'true' && '--screenshot' || '' }} \
+            ${{ github.event.inputs.save_html == 'true' && '--save-html' || '' }}
 
       - name: Commit and push final ZIP
         run: |
